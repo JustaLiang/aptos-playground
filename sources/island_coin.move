@@ -7,7 +7,7 @@ module justa::island_coin {
             sender,
             b"Island Coin",
             b"ISL",
-            6,
+            8,
             false,
         );
     }

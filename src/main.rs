@@ -15,8 +15,10 @@ use aptos_sdk::{
         AccountKey, LocalAccount,
     },
 };
+use async_trait::async_trait;
 use dotenv::dotenv;
 use hex::FromHex;
+use serde::Deserialize;
 use std::{
     convert::TryFrom,
     str::FromStr,
@@ -24,31 +26,36 @@ use std::{
 };
 use url::Url;
 
+const APTOS_CONFIG: &str = ".aptos/config.yaml";
+const APTOS_ACCOUNT_TYPE: &str = "0x1::account::Account";
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // setup env and log
     dotenv().ok();
     pretty_env_logger::init();
-    let node_url = std::env::var("APTOS_NODE_URL").expect("APTOS_NODE_URL not set");
-    let account_address = std::env::var("ACCOUNT_ADDRESS").expect("ACCOUNT_ADDRESS not set");
-    let private_key = std::env::var("PRIVATE_KEY").expect("PRIVATE_KEY not set");
-    let sequence_number = std::env::var("SEQUENCE_NUMBER")
-        .expect("SEQUENCE_NUMBER not set")
-        .parse::<u64>()
-        .expect("SEQUENCE_NUMBER not u64");
-    log::info!("load env done");
+
+    let config = std::fs::read_to_string(APTOS_CONFIG)?;
+    let config: Config = serde_yaml::from_str(&config)?;
+    log::debug!("{:?}", &config);
+
+    let rest_url = config.profiles.default.rest_url;
+    let account = format!("0x{}", config.profiles.default.account);
+    let private_key = &config.profiles.default.private_key[2..];
 
     // setup client
-    let client = Client::new(Url::from_str(&node_url)?);
+    let client = Client::new(Url::from_str(&rest_url)?);
     log::debug!("client\n{:?}\n", &client);
 
     // setup owner
-    let address = AccountAddress::from_hex_literal(&account_address)?;
-    let private_key = <[u8; 32]>::from_hex(&private_key)?;
-    let key = AccountKey::from_private_key(Ed25519PrivateKey::try_from(&private_key as &[u8])?);
+    let address = AccountAddress::from_hex_literal(&account)?;
+    let private_key = <[u8; 32]>::from_hex(private_key)?;
+    let key = AccountKey::from_private_key(Ed25519PrivateKey::try_from(private_key.as_slice())?);
+    let sequence_number = client.get_sequence_number(address).await?;
     let mut owner = LocalAccount::new(address, key, sequence_number);
     log::debug!("owner\n{:?}\n", &owner);
     log::info!("owner address: {}", &owner.address());
+    log::info!("owner sequence number: {}", sequence_number);
 
     // setup coin type and coin store
     let coin_type = format!("0x{}::island_coin::IslandCoin", &address);
@@ -57,11 +64,12 @@ async fn main() -> Result<()> {
     log::debug!("coin store\n{}\n", coin_type);
 
     // check owner's IslandCoin balance
-    let to_address = std::env::var("ACCOUNT_ADDRESS").unwrap_or(format!("0x{}", address));
+    let to_address = std::env::var("TO_ADDRESS").unwrap_or(format!("0x{}", address));
     let to_address = AccountAddress::from_hex_literal(&to_address)?;
-    let balance = get_island_coin_balance(&client, to_address, &coin_store)
-        .await
-        .unwrap_or(0);
+    log::info!("to address: {}", to_address);
+    let balance = client
+        .get_island_coin_balance(to_address, &coin_store)
+        .await?;
     log::info!("balance before: {}", &balance);
 
     // send transaction
@@ -78,7 +86,7 @@ async fn main() -> Result<()> {
             vec![TypeTag::from_str(&coin_type)?],
             vec![
                 bcs::to_bytes(&to_address)?,
-                bcs::to_bytes(&1_000_000_000_u64)?,
+                bcs::to_bytes(&10_00000000_u64)?,
             ],
         )),
         SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + 300,
@@ -95,27 +103,82 @@ async fn main() -> Result<()> {
     log::debug!("transaction\n{:?}\n", &transaction);
 
     // check owner's IslandCoin balance
-    let balance = get_island_coin_balance(&client, to_address, &coin_store)
-        .await
-        .unwrap_or(0);
+    let balance = client
+        .get_island_coin_balance(to_address, &coin_store)
+        .await?;
     log::info!("balance after: {}", &balance);
 
     Ok(())
 }
 
-// if no resource return 0
-async fn get_island_coin_balance(
-    client: &Client,
-    address: AccountAddress,
-    coin_store: &str,
-) -> Result<u64> {
-    let resp = client.get_account_resource(address, coin_store).await?;
-    resp.and_then(|resource| {
-        if let Some(res) = resource {
-            Ok(serde_json::from_value::<Balance>(res.data)?)
-        } else {
-            Err(anyhow!("No resource unde account"))
-        }
-    })
-    .map(|balance| balance.inner().get())
+#[async_trait]
+trait IslandCoinClient {
+    async fn get_island_coin_balance(
+        &self,
+        address: AccountAddress,
+        coin_store: &str,
+    ) -> Result<u64>;
+
+    async fn get_sequence_number(&self, address: AccountAddress) -> Result<u64>;
+}
+
+#[async_trait]
+impl IslandCoinClient for Client {
+    async fn get_island_coin_balance(
+        &self,
+        address: AccountAddress,
+        coin_store: &str,
+    ) -> Result<u64> {
+        let resp = self.get_account_resource(address, coin_store).await?;
+        resp.and_then(|resource| {
+            if let Some(res) = resource {
+                log::debug!("coin resource:\n{:?}\n", res);
+                Ok(serde_json::from_value::<Balance>(res.data)?)
+            } else {
+                Err(anyhow!("No CoinStore resource under account"))
+            }
+        })
+        .map(|resp| resp.inner().get())
+    }
+
+    async fn get_sequence_number(&self, address: AccountAddress) -> Result<u64> {
+        let resp = self
+            .get_account_resource(address, APTOS_ACCOUNT_TYPE)
+            .await?;
+        resp.and_then(|resource| {
+            if let Some(res) = resource {
+                log::debug!("account resource:\n{:?}\n", res);
+                Ok(serde_json::from_value::<SequenceNumber>(res.data)?)
+            } else {
+                Err(anyhow!("No Account resource under account"))
+            }
+        })
+        .map(|resp| resp.inner().sequence_number.clone())?
+        .parse::<u64>()
+        .map_err(|err| anyhow!("{}", err.to_string()))
+    }
+}
+
+#[derive(Deserialize, Debug)]
+struct Profile {
+    private_key: String,
+    // public_key: String,
+    account: String,
+    rest_url: String,
+    // faucet_url: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct Profiles {
+    default: Profile,
+}
+
+#[derive(Deserialize, Debug)]
+struct Config {
+    profiles: Profiles,
+}
+
+#[derive(Deserialize)]
+struct SequenceNumber {
+    sequence_number: String,
 }
