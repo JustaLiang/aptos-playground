@@ -28,6 +28,7 @@ use url::Url;
 
 const APTOS_CONFIG: &str = ".aptos/config.yaml";
 const APTOS_ACCOUNT_TYPE: &str = "0x1::account::Account";
+const DEFAULT_TO_AMOUNT: u64 = 10_00000000_u64;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -54,7 +55,7 @@ async fn main() -> Result<()> {
     let sequence_number = client.get_sequence_number(address).await?;
     let mut owner = LocalAccount::new(address, key, sequence_number);
     log::debug!("owner\n{:?}\n", &owner);
-    log::info!("owner address: {}", &owner.address());
+    log::info!("owner address: 0x{}", &owner.address());
     log::info!("owner sequence number: {}", sequence_number);
 
     // setup coin type and coin store
@@ -64,9 +65,16 @@ async fn main() -> Result<()> {
     log::debug!("coin store\n{}\n", coin_type);
 
     // check owner's IslandCoin balance
-    let to_address = std::env::var("TO_ADDRESS").unwrap_or(format!("0x{}", address));
-    let to_address = AccountAddress::from_hex_literal(&to_address)?;
+    // let to_address = std::env::var("TO_ADDRESS").unwrap_or(format!("0x{}", address));
+    let mut args = std::env::args();
+    args.next();
+    let to_address = args.next().unwrap_or(account);
+    let to_amount = match args.next() {
+        Some(amount) => amount.parse().unwrap_or(DEFAULT_TO_AMOUNT),
+        None => DEFAULT_TO_AMOUNT,
+    };
     log::info!("to address: {}", to_address);
+    let to_address = AccountAddress::from_hex_literal(&to_address).unwrap_or(address);
     let balance = client
         .get_island_coin_balance(to_address, &coin_store)
         .await?;
@@ -84,10 +92,7 @@ async fn main() -> Result<()> {
             ModuleId::new(AccountAddress::ONE, Identifier::new("managed_coin")?),
             Identifier::new("mint")?,
             vec![TypeTag::from_str(&coin_type)?],
-            vec![
-                bcs::to_bytes(&to_address)?,
-                bcs::to_bytes(&10_00000000_u64)?,
-            ],
+            vec![bcs::to_bytes(&to_address)?, bcs::to_bytes(&to_amount)?],
         )),
         SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + 300,
         ChainId::new(chain_id),
