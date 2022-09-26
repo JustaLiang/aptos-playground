@@ -37,8 +37,6 @@ Modules 和 Resources 有強烈的從屬關係，只有定義了 Resources 型�
 
 剛剛已經有稍稍提到這個模組，0x1 下的模組基本上就是標準模組庫的感覺，在啟動創世塊時就部署上去了，接下來要來細看裡面定義了什麼操作介面。
 
-##### 開頭
-
 ![coin head](../assets/coin-head.png)
 
 模組的開頭會宣告 module [帳號:模組名稱]，aptos_framework 會被轉成 0x1，這個 mapping 可以定義在 Move.toml 檔。如果要使用其他模組的類型或運算，可以用 use 來簡化程式碼，像是 use aptos_framework::account 就可以用 account 代替上面這串。
