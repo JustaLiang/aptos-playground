@@ -84,9 +84,9 @@ Move 認為存在帳號之下的數據是神聖不可侵犯的，並給他一個
 
 這串 Key 就包含了完整的規範資訊。 0x1 就是標準模組存放的 Account 地址，而 coin 就是其中制定貨幣規範的模組，CoinStore 則是這個模組裡定義的類型，儲存你有多少數量的貨幣。而只有 0x1::coin 這個模組能夠操其下定義的類型。下面用兩張圖來說明 Solidity 和 Move 儲存資料的差別。
 
-<img src="https://miro.medium.com/max/4800/0*QxtLsxCiZsDrAXVB.png" alt="solidity state"/>
+![solidity blockchain state](../assets/solidity-blockchain-state.png)
 
-<img src="https://miro.medium.com/max/4800/0*RCtumiMIxqKnIm7I.png" alt="move state"/>
+![move blockchain state](../assets/move-blockchain-state.png)
 
 可以看用有別於 Solidity 是將合約地址擺在檢索的第一層，而是以帳號地址為首，這樣的設計可以幫助平行化。乍看之下跟 Solana 比較像，但 Solana 其實並沒有這樣嚴謹的樹狀結構，各個帳號地址其實就像散落在電腦裡的記憶體位址一樣，基本上是找不到任何關聯的，要靠 runtime 和其他程式組織起來。而 Move 裡這種 Key 和 Resources 的結構，做到像 Solana ATA 那樣的效果，而且是內建的，不需要調用 ATA Program。
 
