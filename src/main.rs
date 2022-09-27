@@ -27,7 +27,6 @@ use std::{
 use url::Url;
 
 const APTOS_CONFIG: &str = ".aptos/config.yaml";
-const APTOS_ACCOUNT_TYPE: &str = "0x1::account::Account";
 const DEFAULT_TO_AMOUNT: u64 = 10_00000000_u64;
 
 #[tokio::main]
@@ -87,6 +86,7 @@ async fn main() -> Result<()> {
         .expect("Failed to fetch chain ID")
         .inner()
         .chain_id;
+    let estimated_gas_price = client.estimate_gas_price().await?.inner().gas_estimate;
     let transaction = TransactionBuilder::new(
         TransactionPayload::EntryFunction(EntryFunction::new(
             ModuleId::new(AccountAddress::ONE, Identifier::new("managed_coin")?),
@@ -100,7 +100,7 @@ async fn main() -> Result<()> {
     .sender(owner.address())
     .sequence_number(owner.sequence_number())
     .max_gas_amount(10_000)
-    .gas_unit_price(1);
+    .gas_unit_price(estimated_gas_price);
     let signed_txn = owner.sign_with_transaction_builder(transaction);
     log::debug!("transaction\n{:?}\n", &signed_txn);
     let pending_txn = client.submit(&signed_txn).await?;
@@ -111,7 +111,7 @@ async fn main() -> Result<()> {
     let balance = client
         .get_island_coin_balance(to_address, &coin_store)
         .await?;
-    log::info!("balance after: {}", &balance);
+    log::info!("balance after : {}", &balance);
 
     Ok(())
 }
@@ -147,20 +147,12 @@ impl IslandCoinClient for Client {
     }
 
     async fn get_sequence_number(&self, address: AccountAddress) -> Result<u64> {
-        let resp = self
-            .get_account_resource(address, APTOS_ACCOUNT_TYPE)
-            .await?;
-        resp.and_then(|resource| {
-            if let Some(res) = resource {
-                log::debug!("account resource:\n{:?}\n", res);
-                Ok(serde_json::from_value::<SequenceNumber>(res.data)?)
-            } else {
-                Err(anyhow!("No Account resource under account"))
-            }
-        })
-        .map(|resp| resp.inner().sequence_number.clone())?
-        .parse::<u64>()
-        .map_err(|err| anyhow!("{}", err.to_string()))
+        let account_resp = self
+            .get_account(address)
+            .await
+            .map_err(|err| anyhow!(err.to_string()))?;
+        let account = account_resp.inner();
+        Ok(account.sequence_number)
     }
 }
 
@@ -181,9 +173,4 @@ struct Profiles {
 #[derive(Deserialize, Debug)]
 struct Config {
     profiles: Profiles,
-}
-
-#[derive(Deserialize)]
-struct SequenceNumber {
-    sequence_number: String,
 }
