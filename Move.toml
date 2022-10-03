@@ -6,5 +6,10 @@ git = 'https://github.com/aptos-labs/aptos-core.git'
 rev = 'main'
 subdir = 'aptos-move/framework/aptos-framework'
 
+[dependencies.AptosToken]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-token'
+
 [addresses]
-justa="0x6064192b201dc3a7cff0513654610b141e754c9eb1ff22d40622f858c9d912e9"
+deployer="0x6064192b201dc3a7cff0513654610b141e754c9eb1ff22d40622f858c9d912e9"

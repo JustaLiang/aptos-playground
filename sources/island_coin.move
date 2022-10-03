@@ -1,5 +1,5 @@
 /// This module defines a minimal and generic Coin and Balance.
-module justa::island_coin {
+module deployer::island_coin {
     struct IslandCoin {}
 
     fun init_module(sender: &signer) {
