@@ -1,7 +1,7 @@
 #[test_only]
 module deployer::coin_pool_test {
     use std::signer::address_of;
-    use std::debug;
+    // use std::debug;
     use aptos_framework::account::create_account_for_test;
     use aptos_framework::coin::{Self, FakeMoney};
 
@@ -15,62 +15,80 @@ module deployer::coin_pool_test {
     }
 
     // section 1
-    #[test(pooler=@0x11)]
-    fun owner_can_create_pool(pooler: signer) {
-        let pooler_addr = setup_account(&pooler);
+    #[test(owner=@0x11)]
+    fun owner_can_create_pool(owner: &signer) {
+        let owner_addr = setup_account(owner);
 
-        coin_pool::create_pool<FakeMoney>(&pooler);
-        assert!(coin_pool::has_pool<FakeMoney>(pooler_addr), 10);
+        coin_pool::create_pool<FakeMoney>(owner);
+        assert!(coin_pool::has_pool<FakeMoney>(owner_addr), 10);
     }
 
     // section 2
-    #[test(coin_owner=@0x1, pooler=@0x21, player=@0x22)]
-    fun player_can_put_in(
-        coin_owner: signer,
-        pooler: signer,
-        player: signer,
-    ): (signer, signer, signer) {
-        setup_account(&coin_owner);
-        let pooler_addr = setup_account(&pooler);
-        let player_addr = setup_account(&player);
+    #[test(coin_owner=@0x1, owner=@0x21, player=@0x22)]
+    fun player_can_deposit(
+        coin_owner: &signer,
+        owner: &signer,
+        player: &signer,
+    ) {
+        setup_account(coin_owner);
+        let owner_addr = setup_account(owner);
+        let player_addr = setup_account(player);
 
         let amount: u64 = 100;
-        coin::create_fake_money(&coin_owner, &player, amount);
+        coin::create_fake_money(coin_owner, player, amount);
 
-        coin::transfer<FakeMoney>(&coin_owner, player_addr, amount);
+        coin::transfer<FakeMoney>(coin_owner, player_addr, amount);
         let balance_before = coin::balance<FakeMoney>(player_addr);
         assert!(balance_before == amount, 20);
 
-        coin_pool::create_pool<FakeMoney>(&pooler);
+        coin_pool::create_pool<FakeMoney>(owner);
 
         let put_in_amount = 20;
-        coin_pool::put_in<FakeMoney>(&player, pooler_addr, put_in_amount);
+        coin_pool::deposit<FakeMoney>(player, owner_addr, put_in_amount);
         let balance_after = coin::balance<FakeMoney>(player_addr);
         assert!(balance_after == balance_before - put_in_amount, 21);
-        assert!(coin_pool::pool_liquidity<FakeMoney>(pooler_addr) == put_in_amount, 23);
-        (coin_owner, pooler, player)
+        assert!(coin_pool::pool_liquidity<FakeMoney>(owner_addr) == put_in_amount, 23);
     }
 
     // section 3
-    #[test(coin_owner=@0x1, pooler=@0x31, player=@0x32)]
+    #[test(coin_owner=@0x1, owner=@0x31, player=@0x32)]
     #[expected_failure(abort_code = 0x10006)]
-    fun player_can_put_in_and_take_out(
-        coin_owner: signer,
-        pooler: signer,
-        player: signer,
+    fun player_withdraw_too_much(
+        coin_owner: &signer,
+        owner: &signer,
+        player: &signer,
     ) {
-        let (_, pooler, player) = player_can_put_in(
+        player_can_deposit(
             coin_owner,
-            pooler,
+            owner,
             player,
         );
-        let pooler_addr = address_of(&pooler);
-        let player_addr = address_of(&player);
-        let pool_liquidity = coin_pool::pool_liquidity<FakeMoney>(pooler_addr);
-        debug::print(&pool_liquidity);
+        let owner_addr = address_of(owner);
+        let player_addr = address_of(player);
+        let pool_liquidity = coin_pool::pool_liquidity<FakeMoney>(owner_addr);
 
         let take_out_amount = pool_liquidity + 1;
-        debug::print(&take_out_amount);
-        coin_pool::take_out<FakeMoney>(pooler_addr, player_addr, take_out_amount);
+        coin_pool::withdraw<FakeMoney>(owner_addr, player_addr, take_out_amount);
+    }
+
+    // section 4
+    #[test(owner=@0x41)]
+    fun owner_destroy_empty_pool(
+        owner: &signer,
+    ) {
+        owner_can_create_pool(owner);
+        coin_pool::destroy_empty_pool<FakeMoney>(owner);
+    }
+
+    // section 5
+    #[test(coin_owner=@0x1, owner=@0x51, player=@0x52)]
+    #[expected_failure(abort_code=0x10007)]
+    fun owner_destroy_non_empty_pool(
+        coin_owner: &signer,
+        owner: &signer,
+        player: &signer,
+    ) {
+        player_can_deposit(coin_owner, owner, player);
+        coin_pool::destroy_empty_pool<FakeMoney>(owner);
     }
 }
