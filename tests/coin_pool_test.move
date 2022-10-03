@@ -71,6 +71,6 @@ module deployer::coin_pool_test {
 
         let take_out_amount = pool_liquidity + 1;
         debug::print(&take_out_amount);
-        coin_pool::take_out<FakeMoney>(&pooler, player_addr, take_out_amount);
+        coin_pool::take_out<FakeMoney>(pooler_addr, player_addr, take_out_amount);
     }
 }

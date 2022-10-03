@@ -27,13 +27,12 @@ module deployer::coin_pool {
         coin::merge(&mut pool.coin, coin_in);
     }
 
-    public entry fun take_out<CoinType>(
-        pool_owner: &signer,
+    public fun take_out<CoinType>(
+        pool_owner: address,
         to_account: address,
         amount: u64,
     ) acquires CoinPool {
-        let owner_addr = address_of(pool_owner);
-        let pool = borrow_global_mut<CoinPool<CoinType>>(owner_addr);
+        let pool = borrow_global_mut<CoinPool<CoinType>>(pool_owner);
         let claim_coin = coin::extract<CoinType>(&mut pool.coin, amount);
         coin::deposit<CoinType>(to_account, claim_coin);
     }
