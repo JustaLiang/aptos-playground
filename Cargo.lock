@@ -347,6 +347,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "aptos-playground"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aptos-sdk",
+ "async-trait",
+ "dotenv",
+ "dotenv_codegen",
+ "hex",
+ "log",
+ "pretty_env_logger",
+ "serde 1.0.144",
+ "serde_json",
+ "serde_yaml 0.9.13",
+ "teloxide",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "aptos-rest-client"
 version = "0.0.0"
 source = "git+https://github.com/aptos-labs/aptos-core#b96690113d48a5611971586775b7bbcfba66d2e0"
@@ -2531,26 +2551,6 @@ name = "ipnet"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
-
-[[package]]
-name = "island-coin"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aptos-sdk",
- "async-trait",
- "dotenv",
- "dotenv_codegen",
- "hex",
- "log",
- "pretty_env_logger",
- "serde 1.0.144",
- "serde_json",
- "serde_yaml 0.9.13",
- "teloxide",
- "tokio",
- "url",
-]
 
 [[package]]
 name = "itertools"
