@@ -1,4 +1,4 @@
-module deployer::coin_pool {
+module injoy_labs::coin_pool {
     use aptos_framework::coin::{Self, Coin};
     use aptos_framework::signer::address_of;
 

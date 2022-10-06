@@ -1,12 +1,12 @@
 #[test_only]
-module deployer::coin_pool_test {
+module injoy_labs::coin_pool_test {
     use std::signer::address_of;
     // use std::debug;
     use aptos_framework::account::create_account_for_test;
     use aptos_framework::coin::{Self, FakeMoney};
 
     // target module
-    use deployer::coin_pool;
+    use injoy_labs::coin_pool;
 
     fun setup_account(account: &signer): address {
         let addr = address_of(account);
