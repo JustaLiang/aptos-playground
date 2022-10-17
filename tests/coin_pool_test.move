@@ -1,6 +1,6 @@
 #[test_only]
 module injoy_labs::coin_pool_test {
-    use std::signer::address_of;
+    use std::signer;
     // use std::debug;
     use aptos_framework::account::create_account_for_test;
     use aptos_framework::coin::{Self, FakeMoney};
@@ -9,7 +9,7 @@ module injoy_labs::coin_pool_test {
     use injoy_labs::coin_pool;
 
     fun setup_account(account: &signer): address {
-        let addr = address_of(account);
+        let addr = signer::address_of(account);
         create_account_for_test(addr);
         addr
     }
@@ -63,8 +63,8 @@ module injoy_labs::coin_pool_test {
             owner,
             player,
         );
-        let owner_addr = address_of(owner);
-        let player_addr = address_of(player);
+        let owner_addr = signer::address_of(owner);
+        let player_addr = signer::address_of(player);
         let pool_liquidity = coin_pool::pool_liquidity<FakeMoney>(owner_addr);
 
         let take_out_amount = pool_liquidity + 1;
@@ -77,7 +77,8 @@ module injoy_labs::coin_pool_test {
         owner: &signer,
     ) {
         owner_can_create_pool(owner);
-        coin_pool::destroy_empty_pool<FakeMoney>(owner);
+        let owner_addr = signer::address_of(owner);
+        coin_pool::destroy_empty_pool<FakeMoney>(owner_addr);
     }
 
     // section 5
@@ -89,6 +90,7 @@ module injoy_labs::coin_pool_test {
         player: &signer,
     ) {
         player_can_deposit(coin_owner, owner, player);
-        coin_pool::destroy_empty_pool<FakeMoney>(owner);
+        let owner_addr = signer::address_of(owner);
+        coin_pool::destroy_empty_pool<FakeMoney>(owner_addr);
     }
 }
