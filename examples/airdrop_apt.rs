@@ -1,23 +1,10 @@
 use anyhow::{Context, Result};
 use aptos_playground::AptosConfig;
 use aptos_sdk::coin_client::CoinClient;
-use aptos_sdk::move_types::{
-    identifier::Identifier,
-    language_storage::{ModuleId, TypeTag},
-};
 use aptos_sdk::rest_client::{Client, FaucetClient};
-use aptos_sdk::transaction_builder::TransactionBuilder;
-use aptos_sdk::types::{
-    account_address::AccountAddress,
-    chain_id::ChainId,
-    transaction::{EntryFunction, TransactionPayload},
-    AccountKey, LocalAccount,
-};
+use aptos_sdk::types::{AccountKey, LocalAccount};
 use dotenv::dotenv;
-use std::{
-    str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::str::FromStr;
 use url::Url;
 
 const DEFAULT_TO_AMOUNT: u64 = 1_00000000_u64;
@@ -52,7 +39,7 @@ async fn main() -> Result<()> {
 
     // setup owner
     let key = AccountKey::from_private_key(private_key);
-    let mut owner = LocalAccount::new(address, key, 0);
+    let owner = LocalAccount::new(address, key, 0);
     log::debug!("owner\n{:?}\n", &owner);
     log::info!("owner address: {}", &owner.address().to_hex_literal());
 
@@ -63,44 +50,12 @@ async fn main() -> Result<()> {
         .context("Failed to fund owner's account")?;
 
     log::info!(
-        "Owner: {:?}",
+        "owner's APT balance: {:?}",
         coin_client
             .get_account_balance(&owner.address())
             .await
             .context("Failed to get owner's account balance")?
     );
-
-    // register InJoyCoin
-    let chain_id = client
-        .get_index()
-        .await
-        .expect("Failed to fetch chain ID")
-        .inner()
-        .chain_id;
-
-    let coin_type = format!("0x{}::injoy_coin::InJoyCoin", &address);
-    log::debug!("coin type\n{}\n", coin_type);
-
-    let estimated_gas_price = client.estimate_gas_price().await?.inner().gas_estimate;
-    let transaction = TransactionBuilder::new(
-        TransactionPayload::EntryFunction(EntryFunction::new(
-            ModuleId::new(AccountAddress::ONE, Identifier::new("managed_coin")?),
-            Identifier::new("register")?,
-            vec![TypeTag::from_str(&coin_type)?],
-            vec![],
-        )),
-        SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + 300,
-        ChainId::new(chain_id),
-    )
-    .sender(owner.address())
-    .sequence_number(owner.sequence_number())
-    .max_gas_amount(10_000)
-    .gas_unit_price(estimated_gas_price);
-    let signed_txn = owner.sign_with_transaction_builder(transaction);
-    log::debug!("transaction\n{:?}\n", &signed_txn);
-    let pending_txn = client.submit(&signed_txn).await?;
-    let transaction = client.wait_for_transaction(pending_txn.inner()).await?;
-    log::debug!("transaction\n{:?}\n", &transaction);
 
     Ok(())
 }

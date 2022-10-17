@@ -48,14 +48,14 @@ async fn main() -> Result<()> {
     let sequence_number = client.get_sequence_number(address).await?;
     let mut owner = LocalAccount::new(address, key, sequence_number);
     log::debug!("owner\n{:?}\n", &owner);
-    log::info!("owner address: 0x{}", &owner.address());
+    log::info!("owner address: {}", owner.address().to_hex_literal());
     log::info!("owner sequence number: {}", sequence_number);
 
-    // setup coin type and coin store
-    let coin_type = format!("0x{}::island_coin::IslandCoin", &address);
+    // setup coin type
+    let coin_type = format!("0x{}::injoy_coin::InJoyCoin", &address);
     log::debug!("coin type\n{}\n", coin_type);
 
-    // check owner's IslandCoin balance
+    // check owner's InJoyCoin balance
     let mut args = std::env::args();
     args.next();
     let to_address = if let Some(addr) = args.next() {
@@ -82,6 +82,7 @@ async fn main() -> Result<()> {
         .inner()
         .chain_id;
     let estimated_gas_price = client.estimate_gas_price().await?.inner().gas_estimate;
+
     let transaction = TransactionBuilder::new(
         TransactionPayload::EntryFunction(EntryFunction::new(
             ModuleId::new(AccountAddress::ONE, Identifier::new("managed_coin")?),
@@ -102,7 +103,7 @@ async fn main() -> Result<()> {
     let transaction = client.wait_for_transaction(pending_txn.inner()).await?;
     log::debug!("transaction\n{:?}\n", &transaction);
 
-    // check owner's IslandCoin balance
+    // check owner's InJoyCoin balance
     let balance = client
         .get_account_balance_bcs(address, &coin_type)
         .await?
