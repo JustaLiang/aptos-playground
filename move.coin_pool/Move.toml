@@ -1,0 +1,11 @@
+[package]
+name = 'coin_pool'
+version = '1.0.0'
+
+[dependencies.AptosFramework]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-framework'
+
+[addresses]
+injoy_labs = "0x6064192b201dc3a7cff0513654610b141e754c9eb1ff22d40622f858c9d912e9"
