@@ -1,20 +1,9 @@
 use anyhow::Result;
-use aptos_playground::{AptosConfig, ExtentedAptosClient};
-use aptos_sdk::bcs;
-use aptos_sdk::move_types::{identifier::Identifier, language_storage::ModuleId};
+use aptos_playground::AptosConfig;
 use aptos_sdk::rest_client::Client;
-use aptos_sdk::transaction_builder::TransactionBuilder;
-use aptos_sdk::types::{
-    account_address::{create_resource_address, AccountAddress},
-    chain_id::ChainId,
-    transaction::{EntryFunction, TransactionPayload},
-    AccountKey, LocalAccount,
-};
+use aptos_sdk::types::account_address::AccountAddress;
 use dotenv::dotenv;
-use std::{
-    str::FromStr,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::str::FromStr;
 use url::Url;
 
 #[tokio::main]
@@ -23,44 +12,37 @@ async fn main() -> Result<()> {
     dotenv().ok();
     pretty_env_logger::init();
 
-    let default_profile = AptosConfig::load_profile("mainnet")?;
-    log::debug!("{:?}", &default_profile);
+    let profile = AptosConfig::load_profile("mainnet")?;
+    log::debug!("{:?}", &profile);
 
-    let rest_url = default_profile
-        .rest_url
-        .expect("'rest_url' field not found");
-    let address = default_profile.account.expect("'account' field not found");
-    let private_key = default_profile
-        .private_key
-        .expect("'private_key' field not found");
+    let rest_url = profile.rest_url.expect("'rest_url' field not found");
 
     // setup client
-    let client = Client::new(Url::from_str(&rest_url)?);
+    let rest_url = Url::from_str(&rest_url)?;
+    let client = Client::new(rest_url);
     log::debug!("client\n{:?}\n", &client);
 
-    let table_handle = AccountAddress::from_hex_literal(
-        "0x64997f0422516f96db479fa4789d095c8612bd412d44e592f5a325751c9fb36f",
+    let collection_configs_handle = AccountAddress::from_hex_literal(
+        "0x98d2b9903a3236185515b3ce8c6fe1171fdad3de9a03b4c63223c87ee752e1c1",
     )?;
-    let key_type = "0x1::string::String";
-    let value_type = "0x3::token::CollectionData";
-    let key = "Fake Aptos Polar Bears 1";
-    let collection_data = client
-        .get_table_item(table_handle, key_type, value_type, key)
-        .await?
-        .inner()
-        .clone();
-    log::info!("{:?}", collection_data);
+    let spw_handle = client.get_table_item(
+        collection_configs_handle,
+        "0x1::string::String",
+        "0x4b8cec33043700c2e159b55d39dff908c28f21ebaf0d64b0539a465721021a3a::candy_machine_v2::CollectionConfig",
+        "Aptos Yetis"
+    ).await?.inner().get("supply_per_wl").unwrap().get("handle").unwrap().to_string();
+    let spw_handle_str = &spw_handle[1..spw_handle.len() - 1];
+    log::info!("spw_handle: {}", spw_handle_str);
 
-    let resource_account = AccountAddress::from_hex_literal(
-        "0xcacda9e05cb789634ac5d430176035b44c6bb28baad3f6433f4d3f3c4578dfa2",
+    let spw_handle = AccountAddress::from_hex_literal(spw_handle_str)?;
+
+    let whitelist_user = AccountAddress::from_hex_literal(
+        "0x3a8be6e9603996bd13e8ade795fb62035b4799fa82427bc0418174629ed7fdb5",
     )?;
-    let resource_type = "0x3::token::Collections";
-    let collections_metadata = client
-        .get_account_resource(resource_account, resource_type)
+    let whitelist_supply = client
+        .get_table_item(spw_handle, "address", "u64", whitelist_user)
         .await?
-        .inner()
-        .clone();
-    log::info!("{:?}", collections_metadata);
-
+        .into_inner();
+    log::info!("{:?}", whitelist_supply);
     Ok(())
 }
