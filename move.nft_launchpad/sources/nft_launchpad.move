@@ -7,7 +7,7 @@ module injoy_labs::injoy_nft_launchpad {
     use aptos_framework::account;
     use aptos_framework::aptos_account;
     use aptos_framework::timestamp;
-    use aptos_framework::table;
+    // use aptos_framework::table;
 
     const EAGENT_ACCOUNT_NOT_SET: u64 = 0;
 
@@ -84,7 +84,7 @@ module injoy_labs::injoy_nft_launchpad {
         buyer: &signer,
         creator: address,
         collection: String,
-        amount: u64,
+        // amount: u64,
     ) acquires AgentConfig {
         let agent_addr = account::create_resource_address(
             &creator, *string::bytes(&collection)
